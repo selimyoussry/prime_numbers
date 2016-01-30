@@ -8,7 +8,7 @@ class Prime:
         primes: dict, value = True iff key is prime
         prime_divisors: dict, list of prime divisors and their multiplicities for each number in the range
         """
-        self.maxi = maxi
+        self.maxi = int(maxi)
 
         self.my_range = range(2, self.maxi + 1)
         self.primes = dict(
@@ -27,19 +27,20 @@ class Prime:
         )
 
         # Yields true iff the sieve has been performed until maxi
-        self.sieved = False
+        self._sieved = False
+        self._decomposed = False
 
         if sieve:
             self.sieve()
 
-        if self.sieved and prime_decomp:
+        if self._sieved and prime_decomp:
             self.get_prime_decomposition()
 
     def sieve(self):
         """
         Compute the Sieve of Eratosthenes and record the numbers' divisors
         """
-        if self.sieved:
+        if self._sieved:
             return False
 
         prime = 2
@@ -58,28 +59,48 @@ class Prime:
             while prime < self.maxi and not self.primes[prime]:
                 prime += 1
 
-        self.sieved = True
+        self._sieved = True
 
     def get_primes(self):
         """
         :return: an ascending list of all the prime numbers until self.maxi
         """
-        assert self.sieved
+        assert self._sieved
         return sorted([k for k, b in self.primes.iteritems() if b])
 
     def get_prime_decomposition(self):
-        assert self.sieved
+        assert self._sieved
         for n in self.my_range:
-            if not self.prime_divisors[n].complete(self.primes):
+            if not self.prime_divisors[n].is_complete(self.primes):
+
+                to_add = []
+                to_del = []
                 for divisor, multiplicity in self.prime_divisors[n].divisors.iteritems():
                     if not self.primes[divisor]:
-                        self.prime_divisors[n].add_divisors_of(
-                            q=self.prime_divisors[divisor],
-                            m=multiplicity
-                        )
-                        # self.prime_divisors[n].remove_divisor(divisor)
-                self.prime_divisors[n]._is_complete = True
+                        to_add.append((self.prime_divisors[divisor], multiplicity))
+                        to_del.append(divisor)
 
+                for q, m in to_add:
+                    self.prime_divisors[n].add_divisors_of(q=q,m=m)
+
+                for d in to_del:
+                    self.prime_divisors[n].remove_divisor(d)
+
+                self.prime_divisors[n].is_complete(yes=True)
+        self._decomposed = True
+
+    def _verify(self):
+        assert self._sieved and self._decomposed
+        check_product = dict()
+        check_primes = dict()
+        for number, divisors in self.prime_divisors.iteritems():
+            check_product[number] = number == divisors.get_divisors_product() or self.primes[number]
+            check_primes[number] = sum([self.primes[d] for d in divisors.divisors]) == len(divisors.divisors)
+        for number in check_product:
+            if not check_product[number]:
+                print 'Problem with number {} - its divisors do not multiply to its value'.format(number)
+            if not check_primes[number]:
+                print 'Problem with {} - its divisors are not all prime numbers'.format(number)
 
 class Divisors:
 
@@ -101,7 +122,7 @@ class Divisors:
         """
         self.divisors[d] = self.divisors[d] + m if d in self.divisors else m
 
-    def remove_divisor(self, d, m):
+    def remove_divisor(self, d, m=0):
         """
         :param d: divisor of self.n
         :type d: int
@@ -110,8 +131,11 @@ class Divisors:
 
         Removes the divisor d from the list, or decreases its multiplicity
         """
-        assert d in self.divisors and self.divisors[d] >= m
-        self.divisors[d] -= m
+        assert d in self.divisors
+        if m == 0 or self.divisors[d] == m:
+            del self.divisors[d]
+        else:
+            self.divisors[d] -= m
 
     def add_divisors_of(self, q, m=1):
         """
@@ -124,11 +148,14 @@ class Divisors:
                 m=multiplicity * m
             )
 
-    def complete(self, primes):
+    def is_complete(self, primes=dict(), yes=False):
         """
         :type primes: dict
         :return:
         """
+        if yes:
+            self._is_complete = True
+
         if not self._is_complete:
             for divisor in self.divisors:
                 if not primes[divisor]:
