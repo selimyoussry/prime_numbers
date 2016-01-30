@@ -44,11 +44,14 @@ class Prime:
 
         prime = 2
         while prime < self.maxi:
+            self.prime_divisors[prime].has_been_decomposed(yes=True)
             for alpha in range(2, self.maxi / prime + 1):
                 n = alpha * prime
                 self.primes[n] = False
-                self.prime_divisors[n].add_divisor(prime)
-                self.prime_divisors[n].add_divisor(alpha)
+                if not self.prime_divisors[n].has_been_decomposed():
+                    self.prime_divisors[n].add_divisor(prime)
+                    self.prime_divisors[n].add_divisor(alpha)
+                    self.prime_divisors[n].has_been_decomposed(yes=True)
 
             # Get the new prime number
             prime += 1
@@ -67,14 +70,15 @@ class Prime:
     def get_prime_decomposition(self):
         assert self.sieved
         for n in self.my_range:
-            if not self.prime_divisors[n].is_complete(self.primes):
-                for divisor, multiplicity in self.prime_divisors[n].iteritems():
+            if not self.prime_divisors[n].complete(self.primes):
+                for divisor, multiplicity in self.prime_divisors[n].divisors.iteritems():
                     if not self.primes[divisor]:
                         self.prime_divisors[n].add_divisors_of(
                             q=self.prime_divisors[divisor],
                             m=multiplicity
                         )
-                self.prime_divisors[n].is_complete = True
+                        # self.prime_divisors[n].remove_divisor(divisor)
+                self.prime_divisors[n]._is_complete = True
 
 
 class Divisors:
@@ -85,7 +89,8 @@ class Divisors:
         """
         self.n = n
         self.divisors = dict()
-        self.is_complete = False
+        self._is_complete = False
+        self._has_been_decomposed = False
 
     def add_divisor(self, d, m=1):
         """
@@ -96,7 +101,7 @@ class Divisors:
         """
         self.divisors[d] = self.divisors[d] + m if d in self.divisors else m
 
-    def remove_divisor(self, d, m=0):
+    def remove_divisor(self, d, m):
         """
         :param d: divisor of self.n
         :type d: int
@@ -105,32 +110,44 @@ class Divisors:
 
         Removes the divisor d from the list, or decreases its multiplicity
         """
-        assert d in self.divisors
-        if m == 0 or m == self.divisors:
-            del self.divisors[d]
-        else:
-            self.divisors[d] -= m
+        assert d in self.divisors and self.divisors[d] >= m
+        self.divisors[d] -= m
 
     def add_divisors_of(self, q, m=1):
         """
         :type q: Divisors
         """
-        assert q.is_complete
+        assert q._is_complete
         for prime_divisor, multiplicity in q.divisors.iteritems():
             self.add_divisor(
                 d=prime_divisor,
                 m=multiplicity * m
             )
 
-    def is_complete(self, primes):
+    def complete(self, primes):
         """
         :type primes: dict
         :return:
         """
-        if not self.is_complete:
+        if not self._is_complete:
             for divisor in self.divisors:
                 if not primes[divisor]:
-                    self.is_complete = False
+                    self._is_complete = False
                     return False
-            self.is_complete = True
-        return self.is_complete
+            self._is_complete = True
+        return self._is_complete
+
+    def get_divisors_product(self):
+        product = 1
+        for divisor, multiplicity in self.divisors.iteritems():
+            product *= pow(divisor, multiplicity)
+        return product
+
+    def has_been_decomposed(self, yes=False):
+        if yes:
+            self._has_been_decomposed = True
+
+        if not self._has_been_decomposed:
+            self._has_been_decomposed = self.get_divisors_product() == self.n
+
+        return self._has_been_decomposed
