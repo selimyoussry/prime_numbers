@@ -39,14 +39,12 @@ class Prime:
         if self._sieved and prime_decomp:
             self.get_prime_decomposition()
 
-    def sieve(self):
+    def sieve(self, start_with=2):
         """
         Compute the Sieve of Eratosthenes and record the numbers' divisors
         """
-        if self._sieved:
-            return False
 
-        prime = 2
+        prime = start_with
         while prime < self.maxi:
             self.prime_divisors[prime].has_been_decomposed(yes=True)
             for alpha in range(2, self.maxi / prime + 1):
