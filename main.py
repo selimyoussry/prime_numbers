@@ -1,3 +1,6 @@
+import copy
+
+
 class Prime:
 
     def __init__(self, maxi, sieve=True, prime_decomp=True):
@@ -178,3 +181,39 @@ class Divisors:
             self._has_been_decomposed = self.get_divisors_product() == self.n
 
         return self._has_been_decomposed
+
+    def count_all_divisors(self):
+        assert self._has_been_decomposed
+
+        if self.n == 1:
+            ret = 1
+        elif len(self.divisors) == 0:
+            ret = 2
+        else:
+            product = 1
+            for d, m in self.divisors.iteritems():
+                product *= (m + 1)
+            ret = product
+
+        return ret
+
+    def get_all_divisors(self, sort=True):
+        assert self._has_been_decomposed
+
+        print 'sstr'
+
+        if self.n == 1:
+            ret = [1]
+        elif len(self.divisors) == 0:
+            ret = [1, self.n]
+        else:
+            ret = [1]
+            for d, m in self.divisors.iteritems():
+                cp_ret = copy.copy(ret)
+                for mm in range(1, m + 1):
+                    for k in cp_ret:
+                        ret.append(pow(d, mm) * k)
+
+        if sort:
+            ret = sorted(ret)
+        return ret
